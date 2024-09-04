@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PM_DEVS=""
+PM_DEVS="$PM_DEVS /sys/devices/platform/sound-sgtl5000/HiFi/pmdown_time" #Debian 12 has relocated the driver
 PM_DEVS="$PM_DEVS /sys/devices/soc0/sound-sgtl5000.24/HiFi/pmdown_time"
 PM_DEVS="$PM_DEVS /sys/devices/soc0/sound-sgtl5000/HiFi/pmdown_time"
 
