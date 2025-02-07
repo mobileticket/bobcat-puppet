@@ -2,7 +2,7 @@ class bobcat::validator (
   $enabled                  = true,
   $config_template          = 'bobcat/validator/validator.yaml.epp',
   $backup                   = true,
-  $dynconf_enabled          = true,
+  $dynconf_update_enabled   = true,
   $kdk_url                  = undef,
   $dynconf_base_url         = undef,
   $dynconf_timer            = 'hourly',
@@ -32,7 +32,7 @@ class bobcat::validator (
   if $headless {
     package {
       'bobcat-validator':
-        ensure => "absent";
+        ensure => 'absent';
       'bobcat-validator-headless':
         ensure => $bobcat_version,
         notify => Exec['bobcat-systemctl-daemon-reload'];
@@ -43,7 +43,7 @@ class bobcat::validator (
         ensure => $bobcat_version,
         notify => Exec['bobcat-systemctl-daemon-reload'];
       'bobcat-validator-headless':
-        ensure => "absent";
+        ensure => 'absent';
     }
   }
 
@@ -61,39 +61,84 @@ class bobcat::validator (
     }
   }
 
-  if $kdk_url {
-    file {
-      '/usr/local/bin/kdk_update':
+  # Manage dynconf_update and kdk_update scripts
+  if $dynconf_update_enabled {
+    if $dynconf_base_url {
+      file { '/usr/local/bin/dynconf_update':
+        ensure  => file,
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0544',
+        backup  => $backup,
+        content => epp('bobcat/validator/dynconf_update.sh.epp');
+      }
+    }
+
+    if $kdk_url {
+      file { '/usr/local/bin/kdk_update':
         ensure  => file,
         owner   => 'root',
         group   => 'root',
         mode    => '0544',
         backup  => $backup,
         content => epp('bobcat/validator/kdk_update.sh.epp');
+      }
     }
-  } else {
-    file {
-      '/usr/local/bin/kdk_update':
-        ensure  => absent;
-    }
-  }
 
-  if $dynconf_base_url {
     file {
-      '/usr/local/bin/dynconf_update':
+      '/etc/systemd/system/bobcat-dynconf.timer':
         ensure  => file,
         owner   => 'root',
         group   => 'root',
-        mode    => '0544',
-        backup  => $backup, 
-        content => epp('bobcat/validator/dynconf_update.sh.epp');
+        mode    => '0444',
+        backup  => $backup,
+        content => epp('bobcat/validator/bobcat-dynconf.timer.epp'),
+        notify  => Exec['bobcat-systemctl-daemon-reload'];
+
+      '/etc/systemd/system/bobcat-dynconf.service':
+        ensure  => file,
+        owner   => 'root',
+        group   => 'root',
+        mode    => '0444',
+        backup  => $backup,
+        content => epp('bobcat/validator/bobcat-dynconf.service.epp'),
+        notify  => Exec['bobcat-systemctl-daemon-reload'];
     }
-    } else {
-      file {
-        '/usr/local/bin/dynconf_update':
-          ensure  => absent;
-      }
+
+    service { 'bobcat-dynconf.timer':
+      ensure => running,
+      enable => true;
     }
+
+    service { 'bobcat-dynconf.service':
+      enable => true;
+    }
+  } else {
+    file { '/usr/local/bin/dynconf_update':
+      ensure => absent;
+    }
+
+    file { '/usr/local/bin/kdk_update':
+      ensure => absent;
+    }
+
+    service { 'bobcat-dynconf.timer':
+      ensure => stopped,
+      enable => false;
+    }
+
+    service { 'bobcat-dynconf.service':
+      enable => false;
+    }
+
+    file {
+      '/etc/systemd/system/bobcat-dynconf.timer':
+        ensure => absent;
+
+      '/etc/systemd/system/bobcat-dynconf.service':
+        ensure => absent;
+    }
+  }
 
   file {
     '/var/lib/bobcat':
@@ -114,26 +159,8 @@ class bobcat::validator (
       group   => 'root',
       mode    => '0444',
       content => epp($config_template),
-      backup  => $backup, 
-      notify  => Service['bobcat-validator'];
-
-    '/etc/systemd/system/bobcat-dynconf.timer':
-      ensure  => file,
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0444',
-      backup  => $backup, 
-      content => epp('bobcat/validator/bobcat-dynconf.timer.epp'),
-      notify  => Exec['bobcat-systemctl-daemon-reload'];
-
-    '/etc/systemd/system/bobcat-dynconf.service':
-      ensure  => file,
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0444',
       backup  => $backup,
-      content => epp('bobcat/validator/bobcat-dynconf.service.epp'),
-      notify  => Exec['bobcat-systemctl-daemon-reload'];
+      notify  => Service['bobcat-validator'];
   }
 
   exec {
@@ -147,12 +174,5 @@ class bobcat::validator (
     'bobcat-validator':
       ensure => running,
       enable => $enabled;
-
-    'bobcat-dynconf.timer':
-      ensure => running,
-      enable => $dynconf_enabled;
-
-    'bobcat-dynconf.service':
-      enable => $dynconf_enabled;
   }
 }
