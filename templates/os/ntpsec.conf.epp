@@ -1,0 +1,15 @@
+# This file is managed by Puppet - DO NOT EDIT
+#
+# NTPSEC Configuration for DEB12
+
+driftfile /var/lib/ntpsec/ntp.drift
+
+restrict default kod limited nomodify noquery
+restrict 127.0.0.1
+restrict ::1
+
+restrict source nomodify noquery
+
+<% $::bobcat::os::ntp::servers.each |$server| { -%>
+server <%= $server %>
+<% } -%>
