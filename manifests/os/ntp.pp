@@ -20,6 +20,7 @@ class bobcat::os::ntp (
         group   => 'root',
         mode    => '0444',
         content => "DAEMON_OPTS=\"-s -f /etc/openntpd/ntpd.conf\"\n",
+        backup  => false,
         notify  => Service['openntpd'];
     }
     service { 'openntpd': ensure => running, enable => true, name => 'openntpd'; }
@@ -42,6 +43,7 @@ class bobcat::os::ntp (
         group   => 'root',
         mode    => '0444',
         content => "NTPD_OPTS=\"-g\"\n",
+        backup  => false,
         notify  => Service['ntp'];
     }
     service { 'ntp': ensure => running, enable => true, name => 'ntp'; }
